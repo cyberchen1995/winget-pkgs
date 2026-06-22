@@ -82,6 +82,7 @@ enum DependencySources {
 
 # Script Behaviors
 $ProgressPreference = 'SilentlyContinue'
+Import-Module (Join-Path $PSScriptRoot 'Modules\SharedUtils\SharedUtils.psd1') -Force
 $ErrorActionPreference = 'Stop' # This gets overridden most places, but is set explicitly here to help catch errors
 if ($PSBoundParameters.Keys -notcontains 'InformationAction') { $InformationPreference = 'Continue' } # If the user didn't explicitly set an InformationAction, Override their preference
 if ($PSBoundParameters.Keys -contains 'WarningAction') {
@@ -290,25 +291,6 @@ function Get-RemoteContent {
     }
 }
 
-####
-# Description: Removes files and folders from the file system
-# Inputs: List of paths to remove
-# Outputs: None
-####
-function Invoke-FileCleanup {
-    param (
-        [Parameter(Mandatory = $true)]
-        [AllowEmptyString()]
-        [AllowEmptyCollection()]
-        [String[]] $FilePaths
-    )
-    if (!$FilePaths) { return }
-    foreach ($path in $FilePaths) {
-        Write-Debug "Removing $path"
-        if (Test-Path $path) { Remove-Item -Path $path -Recurse }
-        else { Write-Warning "Could not remove $path as it does not exist" }
-    }
-}
 
 ####
 # Description: Stops a process and waits for it to terminate

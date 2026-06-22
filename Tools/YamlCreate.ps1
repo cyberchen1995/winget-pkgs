@@ -257,6 +257,7 @@ Write-Debug "Adding $(Join-Path -Path $PSScriptRoot -ChildPath 'Modules') to PSM
 $env:PSModulePath = $env:PSModulePath + ';' + (Join-Path -Path $PSScriptRoot -ChildPath 'Modules') # Add the local modules to the PSModulePath
 
 Import-Module -Name 'YamlCreate' -Scope Global -Force -ErrorAction 'Stop' # Parent module that loads the rest of the modules required for the script
+Import-Module -Name 'SharedUtils' -Force -ErrorAction 'Stop'
 
 $_wingetVersion = 1.0.0
 $_appInstallerVersion = (Get-AppxPackage Microsoft.DesktopAppInstaller).version
@@ -402,25 +403,6 @@ if ($remoteUpstreamUrl -and $remoteUpstreamUrl -ne $wingetUpstream) {
   git remote add upstream $wingetUpstream
 }
 
-####
-# Description: Removes files and folders from the file system
-# Inputs: List of paths to remove
-# Outputs: None
-####
-function Invoke-FileCleanup {
-  param (
-    [Parameter(Mandatory = $true)]
-    [AllowEmptyString()]
-    [AllowEmptyCollection()]
-    [String[]] $FilePaths
-  )
-  if (!$FilePaths) { return }
-  foreach ($path in $FilePaths) {
-    Write-Debug "Removing $path"
-    if (Test-Path $path) { Remove-Item -Path $path -Recurse }
-    else { Write-Warning "Could not remove $path as it does not exist" }
-  }
-}
 
 # Since this script changes the UI Calling Culture, a clean exit should set it back to the user preference
 # If the remote upstream was changed, that should also be set back
