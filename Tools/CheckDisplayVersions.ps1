@@ -40,13 +40,12 @@ if (-not(Get-Module -ListAvailable -Name powershell-yaml)) {
     } catch {
         # If there was an exception while installing, pass it as an InternalException for further debugging
         throw [UnmetDependencyException]::new("'powershell-yaml' unable to be installed successfully", $_.Exception)
-    } finally {
-        # Double check that it was installed properly
-        if (-not(Get-Module -ListAvailable -Name powershell-yaml)) {
-            throw [UnmetDependencyException]::new("'powershell-yaml' is not found")
-        }
-        Write-Verbose "PowerShell module 'powershell-yaml' was installed successfully"
     }
+    # Verify the module is available after installation
+    if (-not(Get-Module -ListAvailable -Name powershell-yaml)) {
+        throw [UnmetDependencyException]::new("'powershell-yaml' is not found")
+    }
+    Write-Verbose "PowerShell module 'powershell-yaml' was installed successfully"
 }
 
 # Set the root folder where manifests should be loaded from
