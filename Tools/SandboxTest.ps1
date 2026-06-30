@@ -258,7 +258,12 @@ function Get-RemoteContent {
     if ([String]::IsNullOrWhiteSpace($URL)) {
         $response = @{ StatusCode = 400 }
     } else {
-        $response = Invoke-WebRequest -Uri $URL -Method Head -ErrorAction SilentlyContinue
+        try {
+            $response = Invoke-WebRequest -Uri $URL -Method Head -ErrorAction Stop
+        } catch {
+            Write-Debug "HEAD request to $URL failed: $($_.Exception.Message)"
+            $response = @{ StatusCode = 0 }
+        }
     }
     if ($response.StatusCode -ne 200) {
         Write-Debug "Fetching remote content from $URL returned status code $($response.StatusCode)"
@@ -279,7 +284,7 @@ function Get-RemoteContent {
         $downloadTask = $script:HttpClient.GetByteArrayAsync($URL)
         [System.IO.File]::WriteAllBytes($localfile.FullName, $downloadTask.Result)
     } catch {
-        # If the download fails, write a zero-byte file anyways
+        Write-Warning "Failed to download content from ${URL}: $($_.Exception.Message)"
         $null | Out-File $localFile.FullName
     }
     # If the raw content was requested, return the content, otherwise, return the FileInfo object

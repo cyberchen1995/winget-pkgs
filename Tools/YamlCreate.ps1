@@ -185,8 +185,7 @@ function Initialize-Module {
       # This might fail if the user is not an administrator, so catch the errors
       Install-PackageProvider -Name NuGet -MinimumVersion $script:NuGetMinimumVersion.ToString() -Force -Scope CurrentUser
     } catch {
-      Write-Error 'Could not install the NuGet package provider which is required to install script dependencies.' -ErrorAction Continue
-      Write-Error "You may be able to resolve this by running: Install-PackageProvider -Name NuGet -MinimumVersion $($script:NuGetMinimumVersion.ToString())"
+      throw "Could not install the NuGet package provider which is required to install script dependencies. You may be able to resolve this by running: Install-PackageProvider -Name NuGet -MinimumVersion $($script:NuGetMinimumVersion.ToString())"
     }
   }
 
@@ -199,7 +198,7 @@ function Initialize-Module {
     try {
       Install-Module -Name $Name -Force -Repository PSGallery -Scope CurrentUser
     } catch {
-      Write-Error "$Name was unable to be installed successfully"
+      throw "$Name was unable to be installed successfully: $($_.Exception.Message)"
     }
   }
   # Verify the module is installed and present
@@ -212,7 +211,7 @@ function Initialize-Module {
       Import-Module @importParameters
     }
   } catch {
-    Write-Error "$Name was found in available modules, but could not be imported"
+    throw "$Name was found in available modules, but could not be imported: $($_.Exception.Message)"
   }
 }
 
@@ -527,10 +526,17 @@ Function Test-Url {
       $script:ResponseUri = $HTTP_Response.ResponseUri.AbsoluteUri
       $HTTP_Status = [int]$HTTP_Response.StatusCode
     } catch {
-      $HTTP_Status = 404
+      # Extract the actual HTTP status code from the WebException if available
+      if ($_.Exception.InnerException -is [System.Net.WebException] -and $_.Exception.InnerException.Response) {
+        $HTTP_Status = [int]$_.Exception.InnerException.Response.StatusCode
+      } elseif ($_.Exception -is [System.Net.WebException] -and $_.Exception.Response) {
+        $HTTP_Status = [int]$_.Exception.Response.StatusCode
+      } else {
+        $HTTP_Status = 0
+      }
     }
   }
-  If ($null -eq $HTTP_Response) { $HTTP_Status = 404 }
+  If ($null -eq $HTTP_Response) { if ($HTTP_Status -eq 0) { $HTTP_Status = 404 } }
   Else { $HTTP_Response.Close() }
 
   return $HTTP_Status
