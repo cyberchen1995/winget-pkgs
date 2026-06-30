@@ -3855,13 +3855,13 @@ Function Invoke-GitHubRequest {
 		try {
 			$out = (Invoke-WebRequest -Method $Method -Uri $Uri -Headers $Headers -Body $Body -ContentType application/json -ProgressAction SilentlyContinue)
 		} catch {
-			Write-Output ("Error: $($error[0].ToString()) - Url $Url - Body: $Body")
+			Write-Output ("Error: $($error[0].ToString()) - Url $Uri")
 		}
 	} else {
 		try {
 			$out = (Invoke-WebRequest -Method $Method -Uri $Uri -Headers $Headers -ProgressAction SilentlyContinue)
 		} catch {
-			Write-Output ("Error: $($error[0].ToString()) - Url $Url - Body: $Body")
+			Write-Output ("Error: $($error[0].ToString()) - Url $Uri")
 		}
 	}
 	#GitHub requires the value be the .body property of the variable. This makes more sense with CURL, Where-Object this is the -data parameter. However with Invoke-WebRequest it's the -Body parameter, so we end up with the awkward situation of having a Body parameter that needs to be prepended with a body property.
