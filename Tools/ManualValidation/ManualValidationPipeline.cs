@@ -215,19 +215,9 @@ namespace WinGetApprovalNamespace {
 
 		//WMI for local VMs
 		public ManagementScope scope = new ManagementScope(@"root\virtualization\v2");//, null);
-		/* Remote VMs
-		var connectionOptions = new ConnectionOptions(
-		@"en-US",
-		@"domain\user",
-		@"password",
-		null,
-		ImpersonationLevel.Impersonate,
-		AuthenticationLevel.Default,
-		false,
-		null,
-		TimeSpan.FromSeconds(5);
-		public ManagementScope scope = new ManagementScope(new ManagementPath { Server = "hostnameOrIpAddress", NamespacePath = @"root\virtualization\v2" }, connectionOptions);scope.Connect(); 
-		*/
+		// For remote VM connections, use ConnectionOptions with credentials loaded
+		// from a secure credential store (e.g. Windows Credential Manager).
+		// See: https://learn.microsoft.com/en-us/dotnet/api/system.management.connectionoptions
 
 		//ui
 		public RichTextBox outBox_msg;
@@ -4189,7 +4179,8 @@ public void ValidateManifest(int VM = 0, string PackageIdentifier = "", string P
 		}
 
 		public ManagementObject GetVM(string VMName, string ServiceName = "Msvm_ComputerSystem") {
-			return GetCimService(ServiceName + " WHERE ElementName = '" + VMName + "'");
+			string sanitizedVMName = VMName.Replace("'", "''");
+			return GetCimService(ServiceName + " WHERE ElementName = '" + sanitizedVMName + "'");
 		}
 		/*States: 
 		1: Other
