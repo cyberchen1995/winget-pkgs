@@ -31,30 +31,11 @@ param (
 
 $ProgressPreference = 'SilentlyContinue'
 
-# Installs `powershell-yaml` as a dependency for parsing yaml content
-if (-not(Get-Module -ListAvailable -Name powershell-yaml)) {
-    try {
-        Write-Verbose "PowerShell module 'powershell-yaml' was not found. Attempting to install it. . ."
-        Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force -Scope CurrentUser
-        Install-Module -Name powershell-yaml -Force -Repository PSGallery -Scope CurrentUser
-    } catch {
-        # If there was an exception while installing, pass it as an InternalException for further debugging
-        throw [UnmetDependencyException]::new("'powershell-yaml' unable to be installed successfully", $_.Exception)
-    } finally {
-        # Double check that it was installed properly
-        if (-not(Get-Module -ListAvailable -Name powershell-yaml)) {
-            throw [UnmetDependencyException]::new("'powershell-yaml' is not found")
-        }
-        Write-Verbose "PowerShell module 'powershell-yaml' was installed successfully"
-    }
-}
+Import-Module (Join-Path $PSScriptRoot 'Modules\SharedUtils\SharedUtils.psd1') -Force
 
-# Set the root folder where manifests should be loaded from
-if (Test-Path -Path "$PSScriptRoot\..\manifests") {
-    $ManifestsFolder = (Resolve-Path "$PSScriptRoot\..\manifests").Path
-} else {
-    $ManifestsFolder = (Resolve-Path '.\').Path
-}
+Initialize-RequiredModule -Name 'powershell-yaml'
+
+$ManifestsFolder = Get-ManifestsFolder -ScriptRoot $PSScriptRoot
 
 Write-Verbose "Fetching list of installer manifests from $ManifestsFolder . . ."
 $installerManifests = Get-ChildItem $ManifestsFolder -Recurse -Filter '*.installer.yaml'
@@ -119,7 +100,3 @@ if ($versionsWithOverlap.Count -gt 0) {
     $versionsWithOverlap | Format-Table -Wrap
 }
 
-class UnmetDependencyException : Exception {
-    UnmetDependencyException([string] $message) : base($message) {}
-    UnmetDependencyException([string] $message, [Exception] $exception) : base($message, $exception) {}
-}
