@@ -10,7 +10,12 @@ Param
     [string] $Version
 )
 
-$releasesAPIResponse = Invoke-RestMethod 'https://api.github.com/repos/microsoft/winget-cli/releases?per_page=100'
+try {
+    $releasesAPIResponse = Invoke-RestMethod 'https://api.github.com/repos/microsoft/winget-cli/releases?per_page=100'
+} catch {
+    Write-Error "Failed to fetch releases from GitHub API: $($_.Exception.Message)"
+    exit 1
+}
 
 if (!$Prerelease) {
     $releasesAPIResponse = $releasesAPIResponse.Where({ !$_.prerelease })
@@ -40,10 +45,26 @@ if ($Clean) {
     Get-AppxPackage 'Microsoft.DesktopAppInstaller' | Remove-AppxPackage
 }
 
+if ([String]::IsNullOrWhiteSpace($shaFileUrl) -or [String]::IsNullOrWhiteSpace($msixFileUrl)) {
+    Write-Error 'Required release assets not found in the GitHub release.'
+    exit 1
+}
+
 $shaFile = New-TemporaryFile
-Invoke-WebRequest -Uri $shaFileUrl -OutFile $shaFile
+try {
+    Invoke-WebRequest -Uri $shaFileUrl -OutFile $shaFile
+} catch {
+    Remove-Item $shaFile -Force -ErrorAction SilentlyContinue
+    Write-Error "Failed to download SHA256 file: $($_.Exception.Message)"
+    exit 1
+}
 $sha256 = Get-Content $shaFile -Tail 1
 Remove-Item $shaFile -Force
+
+if ([String]::IsNullOrWhiteSpace($sha256)) {
+    Write-Error 'SHA256 hash file was empty or could not be read.'
+    exit 1
+}
 
 $versionFolder = Join-Path $env:LOCALAPPDATA -ChildPath "Packages\Microsoft.DesktopAppInstaller_8wekyb3d8bbwe\bin\$releaseTag"
 if (!(Test-Path $versionFolder)) {
@@ -60,7 +81,12 @@ foreach ($file in $existingFiles) {
 if (!$msixFile) {
     $outputPath = Join-Path $versionFolder -ChildPath "winget_$releaseTag.msix"
     Write-Output "Downloading version $releaseTag to $outputPath"
-    Invoke-WebRequest -Uri $msixFileUrl -OutFile $outputPath
+    try {
+        Invoke-WebRequest -Uri $msixFileUrl -OutFile $outputPath
+    } catch {
+        Write-Error "Failed to download installer: $($_.Exception.Message)"
+        exit 1
+    }
     $file = Get-Item $outputPath
     if ((Get-FileHash $file).Hash.ToLower() -ne $sha256) {
         Write-Output 'Download failed. Installer hashes do not match.'
@@ -69,6 +95,11 @@ if (!$msixFile) {
         $msixFile = $file
     }
 }
-Add-AppxPackage $msixFile.FullName -ForceUpdateFromAnyVersion
+try {
+    Add-AppxPackage $msixFile.FullName -ForceUpdateFromAnyVersion
+} catch {
+    Write-Error "Failed to install package: $($_.Exception.Message)"
+    exit 1
+}
 Write-Output 'Checking winget version . . .'
 & winget -v
