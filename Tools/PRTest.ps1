@@ -38,7 +38,11 @@ Write-Debug 'Creating internal state'
 $PullRequest = $PullRequest.TrimStart('#')
 $ErrorActionPreference = 'Stop'
 $repositoryRoot = 'https://github.com/microsoft/winget-pkgs/'
-$rootDirectory = ((Resolve-Path (git rev-parse --show-toplevel)).ToString() + '\')
+try {
+    $rootDirectory = ((Resolve-Path (git rev-parse --show-toplevel)).ToString() + '\')
+} catch {
+    Write-Error 'This script must be run from within a git repository.' -ErrorAction Stop
+}
 
 Write-Verbose 'Ensuring Dependencies are Present'
 if (!$script:GhIsPresent) { Write-Error "The GitHub CLI is not installed. Install it via 'winget install GitHub.cli' and come back here!" -ErrorAction Stop }
@@ -50,7 +54,9 @@ gh pr checkout $PullRequest $(if (!$KeepBranch) { '--detach' }) -f -R $repositor
 if ($LASTEXITCODE -ne 0) { Write-Error "There was an error checking out the PR. Make sure you're logged into GitHub via 'gh auth login' and come back here!" -ErrorAction Stop }
 
 Write-Verbose 'Parsing changed files'
-$manifest = @(gh pr diff $PullRequest --name-only)
+$manifest = @(gh pr diff $PullRequest --name-only -R $repositoryRoot)
+if ($LASTEXITCODE -ne 0) { Write-Error 'Failed to retrieve the list of changed files from the PR.' -ErrorAction Stop }
+if ($manifest.Count -eq 0 -or [String]::IsNullOrWhiteSpace($manifest[0])) { Write-Error 'No changed files found in the PR.' -ErrorAction Stop }
 $path = (Get-Item (Resolve-Path ($rootDirectory + $manifest[0]))).Directory
 
 Write-Verbose 'Passing execution to SandboxTest.ps1'
